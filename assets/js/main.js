@@ -14,8 +14,7 @@ const quizData = {
         answer: "C",
       },
       {
-        question:
-          "What is the primary function of chlorophyll in a plant?",
+        question: "What is the primary function of chlorophyll in a plant?",
         options: [
           "A. To absorb water",
           "B. To absorb sunlight",
@@ -41,12 +40,7 @@ const quizData = {
     questions: [
       {
         question: "Who was the first Emperor of Rome?",
-        options: [
-          "A. Julius Caesar",
-          "B. Augustus",
-          "C. Nero",
-          "D. Caligula",
-        ],
+        options: ["A. Julius Caesar", "B. Augustus", "C. Nero", "D. Caligula"],
         answer: "B",
       },
       {
@@ -55,14 +49,8 @@ const quizData = {
         answer: "B",
       },
       {
-        question:
-          "Which ancient civilization built the pyramids of Giza?",
-        options: [
-          "A. Mesopotamian",
-          "B. Greek",
-          "C. Egyptian",
-          "D. Roman",
-        ],
+        question: "Which ancient civilization built the pyramids of Giza?",
+        options: ["A. Mesopotamian", "B. Greek", "C. Egyptian", "D. Roman"],
         answer: "C",
       },
       {
@@ -98,12 +86,7 @@ const quizData = {
       },
       {
         question: "What is the capital city of Australia?",
-        options: [
-          "A. Sydney",
-          "B. Melbourne",
-          "C. Canberra",
-          "D. Brisbane",
-        ],
+        options: ["A. Sydney", "B. Melbourne", "C. Canberra", "D. Brisbane"],
         answer: "C",
       },
       {
@@ -138,8 +121,7 @@ const quizData = {
         answer: "B",
       },
       {
-        question:
-          "What is the name of the whale in Herman Melville's novel?",
+        question: "What is the name of the whale in Herman Melville's novel?",
         options: ["A. Shamu", "B. Moby Dick", "C. Flipper", "D. Willy"],
         answer: "B",
       },
@@ -188,8 +170,12 @@ const resultView = document.getElementById("result-view");
 
 // Quiz UI elements (may not all exist in voice-only mode)
 const instructionsContainer = document.getElementById("instructions-text");
-const readyPromptElement = document.querySelector("#instruction-view .ready-prompt");
-const topicPromptElement = document.querySelector("#topic-selection-view .topic-prompt");
+const readyPromptElement = document.querySelector(
+  "#instruction-view .ready-prompt",
+);
+const topicPromptElement = document.querySelector(
+  "#topic-selection-view .topic-prompt",
+);
 const topicListElement = document.getElementById("topic-list");
 
 // Auth elements
@@ -210,18 +196,22 @@ const topicTitleElement = document.getElementById("topic-title");
 const feedbackElement = document.getElementById("feedback");
 const scoreSaveStatus = document.getElementById("score-save-status");
 const scoreHistoryContainer = document.getElementById("score-history");
+const quizVoiceStatusElement = document.getElementById("quiz-voice-status");
 
 // --- Global State ---
 let currentTopic = "";
 let questions = [];
 let currentQuestionIndex = 0;
 let score = 0;
-let timeLimit = 25; // Time limit for each question in seconds
+let timeLimit = 30; // Time limit for each question in seconds
 let timer;
 
 const API_BASE = "http://127.0.0.1:8001/api";
 let authToken = localStorage.getItem("qt_token");
 let currentUser = localStorage.getItem("qt_user") || "";
+
+// Global categories storage (loaded from API for better performance)
+let availableCategories = [];
 
 // Auth state for voice flow
 let authMode = null; // 'login' or 'register'
@@ -239,18 +229,84 @@ let recognition = null;
 let currentCommand = "";
 let listeningTimeout = null;
 const LISTENING_TIMEOUT = 8000; // 8 seconds
+let isRecognizing = false;
 
 console.log("Speech synthesis supported:", isSpeechSynthSupported);
 console.log("Speech recognition supported:", isSpeechRecogSupported);
+
+// Diagnostic function to test microphone and speech recognition
+window.testMicrophone = async function () {
+  console.log("=== MICROPHONE TEST ===");
+
+  // Test 1: Check browser support
+  console.log("✓ Browser supports SpeechRecognition:", isSpeechRecogSupported);
+  console.log("✓ Browser supports SpeechSynthesis:", isSpeechSynthSupported);
+  console.log(
+    "✓ Current recognition object:",
+    recognition ? "EXISTS" : "MISSING",
+  );
+
+  if (recognition) {
+    console.log(
+      "✓ Recognition state:",
+      recognition.continuous ? "CONTINUOUS" : "SINGLE",
+    );
+    console.log("✓ Recognition language:", recognition.lang);
+  }
+
+  // Test 2: Check microphone availability
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    console.error("✗ getUserMedia NOT available");
+    return;
+  }
+
+  try {
+    console.log("Requesting microphone access...");
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    console.log("✓ Microphone access GRANTED");
+    stream.getTracks().forEach((track) => track.stop());
+  } catch (error) {
+    console.error("✗ Microphone access DENIED:", error.name, error.message);
+    return;
+  }
+
+  // Test 3: Try to start recognition
+  if (!recognition) {
+    console.error("✗ Recognition object is null");
+    return;
+  }
+
+  console.log("Attempting to start recognition...");
+  try {
+    recognition.onstart = () => {
+      console.log("✓ Recognition STARTED successfully");
+      recognition.stop();
+    };
+    recognition.onerror = (e) => {
+      console.error("✗ Recognition ERROR:", e.error);
+    };
+    recognition.start();
+  } catch (e) {
+    console.error("✗ Error starting recognition:", e);
+  }
+
+  console.log("=== TEST COMPLETE ===");
+};
+
+console.log("Speech recognition initialized successfully");
+if (isSpeechRecogSupported) {
+  console.log("💡 TIP: Open browser console and run: testMicrophone()");
+}
 
 if (isSpeechRecogSupported) {
   try {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
-    recognition.continuous = false;
+    recognition.continuous = true; // Keep listening for multiple speech inputs
     recognition.interimResults = false;
     recognition.lang = "en-US";
+    recognition.maxAlternatives = 1;
     console.log("Speech recognition initialized successfully");
   } catch (e) {
     console.error("Failed to initialize speech recognition:", e);
@@ -261,6 +317,7 @@ if (isSpeechRecogSupported) {
 // --- View Management ---
 
 function showView(viewId) {
+  console.log("showView called with:", viewId);
   // Hide all views
   const views = document.querySelectorAll(".view");
   views.forEach((view) => view.classList.remove("active"));
@@ -268,8 +325,13 @@ function showView(viewId) {
 
   // Show the selected view
   const targetView = document.getElementById(viewId);
-  targetView.style.display = "block";
-  targetView.classList.add("active");
+  if (targetView) {
+    console.log("Target view found, showing it");
+    targetView.style.display = "block";
+    targetView.classList.add("active");
+  } else {
+    console.error("Target view not found:", viewId);
+  }
 }
 
 function setAuth(token, username) {
@@ -301,6 +363,9 @@ function showAuthError(message) {
 function setVoiceStatus(message) {
   if (voiceStatusElement) {
     voiceStatusElement.textContent = message;
+  }
+  if (quizVoiceStatusElement) {
+    quizVoiceStatusElement.textContent = message;
   }
 }
 
@@ -361,14 +426,15 @@ function readAuthInitialPrompt() {
   if (!isSpeechSynthSupported) {
     console.error("Speech synthesis not supported");
     if (authInstructionElement) {
-      authInstructionElement.textContent = "Voice features are not supported in this browser. Please use Chrome or Edge.";
+      authInstructionElement.textContent =
+        "Voice features are not supported in this browser. Please use Chrome or Edge.";
     }
     return;
   }
   console.log("Starting auth voice prompt...");
   speak(
     'Welcome to Quiz Talk. Say "Login" to sign in, or "Register" to create a new account. You only need a username.',
-    startListeningForAuthCommand
+    startListeningForAuthCommand,
   );
 }
 
@@ -378,17 +444,74 @@ function resetRecognition() {
     clearTimeout(listeningTimeout);
     listeningTimeout = null;
   }
+  // Avoid calling stop()/abort() here — stopping recognition mid-utterance
+  // will cause the recognizer to miss user speech. Instead, clear
+  // timeouts and handlers so a new flow can take over without forcibly
+  // aborting the underlying API.
   try {
-    recognition.stop();
+    console.log("Resetting recognition: clearing handlers (no stop/abort)");
   } catch (e) {
-    // no-op
+    console.log(
+      "Recognition reset encountered error:",
+      e && e.message ? e.message : e,
+    );
   }
+
+  // Clear all event handlers
+  recognition.onstart = null;
+  recognition.onresult = null;
+  recognition.onerror = null;
+  recognition.onend = null;
+  recognition.onnomatch = null;
+}
+
+function startRecognitionWithDelay(callback, delayMs = 300) {
+  if (!isSpeechRecogSupported || !recognition) return;
+
+  if (isRecognizing) {
+    console.warn("Recognition already running — ignoring start request");
+    return;
+  }
+
+  setTimeout(() => {
+    if (!recognition) return;
+    // temporary handlers to manage recognizing flag without overwriting
+    const onStart = () => {
+      isRecognizing = true;
+      // remove this listener after fired
+      try {
+        recognition.removeEventListener("start", onStart);
+      } catch (e) {}
+    };
+    const onEnd = () => {
+      isRecognizing = false;
+      // cleanup listeners
+      try {
+        recognition.removeEventListener("end", onEnd);
+      } catch (e) {}
+    };
+    recognition.addEventListener("start", onStart);
+    recognition.addEventListener("end", onEnd);
+
+    try {
+      console.log("Starting recognition after delay...");
+      recognition.start();
+      if (callback) callback();
+    } catch (e) {
+      console.error("Error starting recognition:", e);
+      if (e.name === "InvalidStateError") {
+        // Still initializing, retry
+        setTimeout(() => startRecognitionWithDelay(callback, 100), 200);
+      }
+    }
+  }, delayMs);
 }
 
 function startAuthVoiceFlow() {
   if (!isSpeechSynthSupported || !isSpeechRecogSupported) {
     if (authInstructionElement) {
-      authInstructionElement.textContent = "Voice features are not supported in this browser. Please use Chrome or Edge.";
+      authInstructionElement.textContent =
+        "Voice features are not supported in this browser. Please use Chrome or Edge.";
     }
     showAuthError("Voice not supported");
     return;
@@ -413,12 +536,19 @@ function startAuthVoiceFlow() {
     .catch((error) => {
       console.error("getUserMedia error:", error);
       if (error.name === "NotAllowedError" || error.name === "SecurityError") {
-        showAuthError("Microphone permission blocked. Please allow mic access and press Start Voice.");
+        showAuthError(
+          "Microphone permission blocked. Please allow mic access and press Start Voice.",
+        );
         setVoiceStatus("Microphone blocked.");
         return;
       }
-      if (error.name === "NotFoundError" || error.name === "OverconstrainedError") {
-        showAuthError("No microphone found. Please connect a microphone and press Start Voice.");
+      if (
+        error.name === "NotFoundError" ||
+        error.name === "OverconstrainedError"
+      ) {
+        showAuthError(
+          "No microphone found. Please connect a microphone and press Start Voice.",
+        );
         setVoiceStatus("Microphone not found.");
         return;
       }
@@ -430,25 +560,26 @@ function startAuthVoiceFlow() {
 function startListeningForAuthCommand() {
   if (!isSpeechRecogSupported || !recognition) {
     console.error("Speech recognition not supported");
-    showAuthError("Voice input is not supported in this browser. Please use Chrome or Edge.");
+    showAuthError(
+      "Voice input is not supported in this browser. Please use Chrome or Edge.",
+    );
     return;
   }
 
   if (authInstructionElement) {
-    authInstructionElement.textContent = "Listening... Say 'Login' or 'Register'.";
+    authInstructionElement.textContent =
+      "Listening... Say 'Login' or 'Register'.";
   }
 
   console.log("Listening for login/register command...");
-  let hasResult = false;
   recognition.onresult = null;
   recognition.onerror = null;
   recognition.onend = null;
   recognition.onnomatch = null;
 
   recognition.onresult = function (event) {
-    hasResult = true;
     if (listeningTimeout) clearTimeout(listeningTimeout);
-    const cmd = event.results[0][0].transcript.toLowerCase();
+    const cmd = event.results[event.resultIndex][0].transcript.toLowerCase();
     console.log("Heard:", cmd);
     if (cmd.includes("login")) {
       authMode = "login";
@@ -458,58 +589,50 @@ function startListeningForAuthCommand() {
       speak("Please say your desired username.", startListeningForAuthUsername);
     } else {
       speak('Sorry, please say "Login" or "Register".');
-      setTimeout(startListeningForAuthCommand, 500);
     }
   };
 
   recognition.onnomatch = function () {
-    hasResult = false;
+    console.log("No match detected in auth command");
+    speak("I didn't hear you clearly. Please say Login or Register again.");
   };
 
   recognition.onend = function () {
-    if (!hasResult) {
-      setTimeout(startListeningForAuthCommand, 500);
-    }
+    console.log("Recognition ended for auth command.");
   };
 
   recognition.onerror = function (event) {
-    console.error("Recognition error:", event.error);
-    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-      showAuthError("Microphone permission blocked. Please allow mic access and press Start Voice.");
+    console.error("Recognition error:", event && event.error);
+    if (
+      event.error === "not-allowed" ||
+      event.error === "service-not-allowed"
+    ) {
+      showAuthError(
+        "Microphone permission blocked. Please allow mic access and press Start Voice.",
+      );
       return;
     }
     if (event.error === "audio-capture") {
-      showAuthError("No microphone found. Please connect a microphone and press Start Voice.");
+      showAuthError(
+        "No microphone found. Please connect a microphone and press Start Voice.",
+      );
       return;
     }
     if (event.error === "network") {
-      showAuthError("Speech service unavailable (network error). Please use Chrome or Edge, or enable speech services in your browser.");
+      showAuthError(
+        "Speech service unavailable (network error). Please use Chrome or Edge, or enable speech services in your browser.",
+      );
       setVoiceStatus("Speech service unavailable.");
-      resetRecognition();
-      return;
     }
-    speak("I didn't hear you. Please say Login or Register.", () => {
-      setTimeout(startListeningForAuthCommand, 500);
-    });
   };
 
   try {
-    resetRecognition();
-    recognition.start();
-    setVoiceStatus("Listening for Login or Register...");
-    listeningTimeout = setTimeout(() => {
-      console.log("Listening timeout for auth command");
-      resetRecognition();
-      speak("I didn't hear anything. Please say Login or Register.", () => {
-        setTimeout(startListeningForAuthCommand, 500);
-      });
-    }, LISTENING_TIMEOUT);
+    startRecognitionWithDelay(
+      () => setVoiceStatus("🎤 Listening for Login or Register..."),
+      200,
+    );
   } catch (e) {
     console.error("Error starting recognition:", e);
-    if (e.name === "InvalidStateError") {
-      setTimeout(startListeningForAuthCommand, 300);
-      return;
-    }
   }
 }
 
@@ -520,65 +643,60 @@ function startListeningForAuthUsername() {
     authInstructionElement.textContent = "Listening... Say your username.";
   }
 
-  let hasResult = false;
   recognition.onresult = null;
   recognition.onerror = null;
   recognition.onend = null;
   recognition.onnomatch = null;
 
   recognition.onresult = function (event) {
-    hasResult = true;
     if (listeningTimeout) clearTimeout(listeningTimeout);
-    authUsername = event.results[0][0].transcript.toLowerCase().trim();
+    authUsername = event.results[event.resultIndex][0].transcript
+      .toLowerCase()
+      .trim();
     performAuth();
   };
 
   recognition.onnomatch = function () {
-    hasResult = false;
+    console.log("No match detected for username");
+    speak("I didn't catch that. Please say your username again.");
   };
 
   recognition.onend = function () {
-    if (!hasResult) {
-      setTimeout(startListeningForAuthUsername, 500);
-    }
+    console.log("Recognition ended for username.");
   };
 
   recognition.onerror = function (event) {
-    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-      showAuthError("Microphone permission blocked. Please allow mic access and press Start Voice.");
+    if (
+      event.error === "not-allowed" ||
+      event.error === "service-not-allowed"
+    ) {
+      showAuthError(
+        "Microphone permission blocked. Please allow mic access and press Start Voice.",
+      );
       return;
     }
     if (event.error === "audio-capture") {
-      showAuthError("No microphone found. Please connect a microphone and press Start Voice.");
+      showAuthError(
+        "No microphone found. Please connect a microphone and press Start Voice.",
+      );
       return;
     }
     if (event.error === "network") {
-      showAuthError("Speech service unavailable (network error). Please use Chrome or Edge, or enable speech services in your browser.");
+      showAuthError(
+        "Speech service unavailable (network error). Please use Chrome or Edge, or enable speech services in your browser.",
+      );
       setVoiceStatus("Speech service unavailable.");
       resetRecognition();
-      return;
     }
-    speak("I did not hear that. Please say your username again.", () => {
-      setTimeout(startListeningForAuthUsername, 500);
-    });
   };
 
   try {
-    resetRecognition();
-    recognition.start();
-    setVoiceStatus("Listening for username...");
-    listeningTimeout = setTimeout(() => {
-      console.log("Listening timeout for username");
-      resetRecognition();
-      speak("I didn't hear your username. Please say your username clearly.", () => {
-        setTimeout(startListeningForAuthUsername, 500);
-      });
-    }, LISTENING_TIMEOUT);
+    startRecognitionWithDelay(
+      () => setVoiceStatus("🎤 Listening for your username..."),
+      150,
+    );
   } catch (e) {
-    if (e.name === "InvalidStateError") {
-      setTimeout(startListeningForAuthUsername, 300);
-      return;
-    }
+    console.error("Error starting username recognition:", e);
   }
 }
 
@@ -598,14 +716,13 @@ async function performAuth() {
     setAuth(data.token, data.username);
     speak(
       `Welcome, ${data.username}! Starting the quiz interface now.`,
-      initInstructionView
+      initInstructionView,
     );
   } catch (error) {
     showAuthError(error.message);
     speak(`${error.message} Please say Login or Register.`);
     authMode = null;
     authUsername = "";
-    setTimeout(startListeningForAuthCommand, 500);
   }
 }
 
@@ -626,7 +743,8 @@ async function loadCurrentUser() {
 function renderScoreHistory(scores) {
   if (!scoreHistoryContainer) return;
   if (!scores || scores.length === 0) {
-    scoreHistoryContainer.innerHTML = "<h3>My Recent Scores</h3><p>No scores yet.</p>";
+    scoreHistoryContainer.innerHTML =
+      "<h3>My Recent Scores</h3><p>No scores yet.</p>";
     return;
   }
 
@@ -678,8 +796,18 @@ function speak(text, callback) {
   console.log("Speaking:", text);
   utterance = new SpeechSynthesisUtterance(text);
 
+  // Use a local flag for this specific utterance
+  let callbackFired = false;
+
   if (callback) {
-    utterance.onend = callback;
+    // Primary callback: fires when speech ends
+    utterance.onend = () => {
+      if (!callbackFired) {
+        callbackFired = true;
+        console.log("Speech completed, firing callback");
+        callback();
+      }
+    };
   }
 
   speechSynth.speak(utterance);
@@ -696,10 +824,61 @@ function stopSpeechAndRecognition() {
     clearTimeout(listeningTimeout);
     listeningTimeout = null;
   }
-  clearTimeout(timer);
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
 }
 
 // --- Instructions View Logic ---
+
+async function loadCategories() {
+  /**
+   * Load categories from API for dynamic topic management
+   * This approach ensures better performance and scalability:
+   * - Database indexes on 'is_active' and 'order' for fast queries
+   * - Only active categories are fetched
+   * - Results are cached in availableCategories
+   * - No hardcoding of topics in frontend
+   */
+  try {
+    const response = await fetch(`${API_BASE}/categories/`);
+    if (!response.ok) {
+      console.error("Failed to load categories:", response.status);
+      return false;
+    }
+
+    const data = await response.json();
+    availableCategories = data.categories || [];
+    console.log("Loaded categories:", availableCategories);
+
+    // Populate the topic list UI
+    populateTopicList();
+    return true;
+  } catch (error) {
+    console.error("Error loading categories:", error);
+    return false;
+  }
+}
+
+function populateTopicList() {
+  /**
+   * Dynamically populate the topic list UI with loaded categories
+   * This is called after categories are loaded from API
+   */
+  if (!topicListElement) return;
+
+  topicListElement.innerHTML = "";
+
+  availableCategories.forEach((category, index) => {
+    const li = document.createElement("li");
+    li.setAttribute("data-topic", category.slug);
+    li.textContent = `${index + 1}. ${category.name}`;
+    topicListElement.appendChild(li);
+  });
+
+  console.log(`Populated ${availableCategories.length} topics`);
+}
 
 function readInstructions() {
   if (isSpeechRecogSupported && recognition) recognition.stop();
@@ -708,11 +887,29 @@ function readInstructions() {
 
 function readTopicInstructions() {
   if (isSpeechRecogSupported && recognition) recognition.stop();
-  const topics = Array.from(topicListElement.children)
-    .map((li) => li.textContent.trim())
-    .join(". ");
-  const text = `The available topics are: ${topics}. ${topicPromptElement.textContent}`;
-  speak(text, startListeningForTopicCommand);
+  try {
+    const topics = Array.from(topicListElement.children)
+      .map((li) => li.textContent.trim())
+      .join(". ");
+    const text = `The available topics are: ${topics}. ${topicPromptElement.textContent}`;
+    speak(text, startListeningForTopicCommand);
+  } catch (e) {
+    console.error("Error in readTopicInstructions:", e);
+    startListeningForTopicCommand();
+  }
+}
+
+// NEW: Read custom topic prompt (skip category list)
+function readCustomTopicPrompt() {
+  if (isSpeechRecogSupported && recognition) recognition.stop();
+  try {
+    const text =
+      "What quiz topic would you like? Say any topic you're interested in - for example: Astronomy, Cooking, Ancient Egypt, or any subject you'd like to learn about.";
+    speak(text, startListeningForCustomTopic);
+  } catch (e) {
+    console.error("Error in readCustomTopicPrompt:", e);
+    startListeningForCustomTopic();
+  }
 }
 
 // --- STT Core Functions (Instructions/Topic) ---
@@ -745,14 +942,15 @@ function startListeningForStartCommand() {
   };
 
   try {
-    recognition.start();
-    listeningTimeout = setTimeout(() => {
-      console.log("Listening timeout for start command");
-      resetRecognition();
-      speak("I didn't hear you. Please say Start Quiz to begin.", () => {
-        setTimeout(startListeningForStartCommand, 500);
-      });
-    }, LISTENING_TIMEOUT);
+    startRecognitionWithDelay(() => {
+      listeningTimeout = setTimeout(() => {
+        console.log("Listening timeout for start command");
+        resetRecognition();
+        speak("I didn't hear you. Please say Start Quiz to begin.", () => {
+          setTimeout(startListeningForStartCommand, 500);
+        });
+      }, LISTENING_TIMEOUT);
+    }, 200);
   } catch (e) {
     if (e.name !== "InvalidStateError") {
     }
@@ -769,21 +967,32 @@ function startListeningForResultCommand() {
     if (listeningTimeout) clearTimeout(listeningTimeout);
     const cmd = event.results[0][0].transcript.toLowerCase();
 
-    if (cmd.includes("logout") || cmd.includes("log out") || cmd.includes("sign out")) {
+    if (
+      cmd.includes("logout") ||
+      cmd.includes("log out") ||
+      cmd.includes("sign out")
+    ) {
       clearAuth();
       showView("auth-view");
       startAuthVoiceFlow();
       return;
     }
 
-    if (cmd.includes("start quiz") || cmd.includes("begin") || cmd.includes("play again")) {
+    if (
+      cmd.includes("start quiz") ||
+      cmd.includes("begin") ||
+      cmd.includes("play again")
+    ) {
       showTopicSelection();
       return;
     }
 
-    speak("Please say Start Quiz to play again, or say Logout to sign out.", () => {
-      setTimeout(startListeningForResultCommand, 500);
-    });
+    speak(
+      "Please say Start Quiz to play again, or say Logout to sign out.",
+      () => {
+        setTimeout(startListeningForResultCommand, 500);
+      },
+    );
   };
 
   recognition.onerror = function (event) {
@@ -793,14 +1002,18 @@ function startListeningForResultCommand() {
   };
 
   try {
-    recognition.start();
-    listeningTimeout = setTimeout(() => {
-      console.log("Listening timeout for result command");
-      resetRecognition();
-      speak("I didn't hear you. Say Start Quiz to play again, or say Logout to sign out.", () => {
-        setTimeout(startListeningForResultCommand, 500);
-      });
-    }, LISTENING_TIMEOUT);
+    startRecognitionWithDelay(() => {
+      listeningTimeout = setTimeout(() => {
+        console.log("Listening timeout for result command");
+        resetRecognition();
+        speak(
+          "I didn't hear you. Say Start Quiz to play again, or say Logout to sign out.",
+          () => {
+            setTimeout(startListeningForResultCommand, 500);
+          },
+        );
+      }, LISTENING_TIMEOUT);
+    }, 200);
   } catch (e) {
     if (e.name !== "InvalidStateError") {
     }
@@ -813,85 +1026,265 @@ function startListeningForTopicCommand() {
   recognition.onresult = null;
   recognition.onerror = null;
 
+  recognition.onstart = function () {
+    console.log("Recognition started for topic selection");
+  };
+
   recognition.onresult = function (event) {
     if (listeningTimeout) clearTimeout(listeningTimeout);
-    currentCommand = event.results[0][0].transcript.toLowerCase();
-    handleTopicSelection(currentCommand);
+
+    // Check if we have a final result
+    let finalTranscript = "";
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript;
+      }
+    }
+
+    if (finalTranscript) {
+      currentCommand = finalTranscript.toLowerCase();
+      console.log("Final transcript for topic:", currentCommand);
+      handleTopicSelection(currentCommand);
+    }
   };
 
   recognition.onerror = function (event) {
-    speak(
-      "I had trouble understanding. Please say the topic name or number again."
-    );
-    setTimeout(startListeningForTopicCommand, 500);
+    console.error("Speech recognition error:", event.error);
+
+    // Handle different error types
+    if (event.error === "no-speech") {
+      speak(
+        "I didn't hear anything. Please say a topic name or number.",
+        () => {
+          setTimeout(startListeningForTopicCommand, 500);
+        },
+      );
+    } else if (event.error === "audio-capture") {
+      speak("No microphone found. Please check your audio settings.", () => {
+        setTimeout(startListeningForTopicCommand, 500);
+      });
+    } else if (event.error === "network") {
+      speak("Network error. Please try again.", () => {
+        setTimeout(startListeningForTopicCommand, 500);
+      });
+    } else {
+      speak(
+        "Sorry, I had trouble understanding. Please say a topic name or number.",
+        () => {
+          setTimeout(startListeningForTopicCommand, 500);
+        },
+      );
+    }
   };
 
   try {
-    recognition.start();
-    listeningTimeout = setTimeout(() => {
-      console.log("Listening timeout for topic command");
-      resetRecognition();
-      speak("I didn't hear a topic. Please say the topic number or name.", () => {
-        setTimeout(startListeningForTopicCommand, 500);
-      });
-    }, LISTENING_TIMEOUT);
+    startRecognitionWithDelay(() => {
+      console.log("Speech recognition started");
+      listeningTimeout = setTimeout(() => {
+        console.log("Listening timeout for topic command");
+        resetRecognition();
+        speak(
+          "I didn't hear a topic. Please say the topic number or name.",
+          () => {
+            setTimeout(startListeningForTopicCommand, 500);
+          },
+        );
+      }, LISTENING_TIMEOUT);
+    }, 200);
   } catch (e) {
-    if (e.name !== "InvalidStateError") {
+    console.error("Error starting recognition:", e);
+  }
+}
+
+// NEW: Listen for custom topic (free-form input - no predefined list)
+function startListeningForCustomTopic() {
+  if (!isSpeechRecogSupported || !recognition) return;
+
+  recognition.onresult = null;
+  recognition.onerror = null;
+  recognition.onstart = null;
+
+  recognition.onstart = function () {
+    console.log("Recognition started for custom topic");
+  };
+
+  recognition.onresult = function (event) {
+    if (listeningTimeout) clearTimeout(listeningTimeout);
+
+    // Check if we have a final result
+    let finalTranscript = "";
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript;
+      }
     }
+
+    if (finalTranscript) {
+      currentCommand = finalTranscript.toLowerCase().trim();
+      console.log("Custom topic spoken:", currentCommand);
+      handleCustomTopic(currentCommand);
+    }
+  };
+
+  recognition.onerror = function (event) {
+    console.error("Speech recognition error:", event.error);
+
+    if (event.error === "no-speech") {
+      speak("I didn't hear anything. Please say your topic.", () => {
+        setTimeout(startListeningForCustomTopic, 500);
+      });
+    } else if (event.error === "audio-capture") {
+      speak("No microphone found. Please check your audio settings.", () => {
+        setTimeout(startListeningForCustomTopic, 500);
+      });
+    } else if (event.error === "network") {
+      speak("Network error. Please try again.", () => {
+        setTimeout(startListeningForCustomTopic, 500);
+      });
+    } else {
+      speak(
+        "Sorry, I had trouble understanding. Please say your topic.",
+        () => {
+          setTimeout(startListeningForCustomTopic, 500);
+        },
+      );
+    }
+  };
+
+  try {
+    startRecognitionWithDelay(() => {
+      console.log("Speech recognition started for custom topic");
+      listeningTimeout = setTimeout(() => {
+        console.log("Listening timeout for custom topic");
+        resetRecognition();
+        speak("I didn't hear a topic. Please say the topic name.", () => {
+          setTimeout(startListeningForCustomTopic, 500);
+        });
+      }, LISTENING_TIMEOUT);
+    }, 200);
+  } catch (e) {
+    console.error("Error starting recognition:", e);
   }
 }
 
 function handleTopicSelection(command) {
-  if (!command) {
+  if (!command || command.trim() === "") {
     speak(
-      "I couldn't hear a topic. Please say the topic name or number clearly."
+      "I couldn't hear a topic. Please say the topic name or number clearly.",
     );
     setTimeout(startListeningForTopicCommand, 500);
     return;
   }
 
-  const normalized = command.toLowerCase().replace(/[^a-z0-9\s]/g, " ");
-  const topics = {
-    1: "science",
-    one: "science",
-    first: "science",
-    science: "science",
-    2: "history",
-    two: "history",
-    second: "history",
-    "world history": "history",
-    history: "history",
-    3: "geography",
-    three: "geography",
-    third: "geography",
-    "geography facts": "geography",
-    4: "literature",
-    four: "literature",
-    fourth: "literature",
-    "classic literature": "literature",
-  };
+  console.log("Processing command:", command);
+  const normalized = command
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .trim();
+
+  // Build dynamic topics mapping from availableCategories
+  const topics = {};
+  availableCategories.forEach((category, index) => {
+    const num = index + 1;
+    const numWords = [
+      "one",
+      "two",
+      "three",
+      "four",
+      "five",
+      "six",
+      "seven",
+      "eight",
+      "nine",
+    ];
+    const ordinalWords = [
+      "first",
+      "second",
+      "third",
+      "fourth",
+      "fifth",
+      "sixth",
+      "seventh",
+      "eighth",
+      "ninth",
+    ];
+
+    // Add numeric and word variations for each category
+    topics[String(num)] = category.slug;
+    if (numWords[index]) topics[numWords[index]] = category.slug;
+    if (ordinalWords[index]) topics[ordinalWords[index]] = category.slug;
+    topics[category.slug] = category.slug;
+    topics[category.name.toLowerCase()] = category.slug;
+  });
 
   let selectedTopic = null;
 
-  for (const key in topics) {
-    if (normalized.includes(String(key))) {
-      selectedTopic = topics[key];
-      break;
+  // Try exact match first
+  if (topics[normalized]) {
+    selectedTopic = topics[normalized];
+  } else {
+    // Try partial match
+    for (const key in topics) {
+      if (normalized.includes(key) && key.length > 1) {
+        selectedTopic = topics[key];
+        break;
+      }
     }
   }
 
   if (selectedTopic) {
-    recognition.stop();
-    // Instead of navigating to quiz.html, we call the in-page initQuiz
-    speak(`You selected ${selectedTopic}. Starting the quiz now!`, () => {
+    console.log("Topic selected:", selectedTopic);
+    if (isSpeechRecogSupported && recognition) {
+      recognition.stop();
+    }
+    currentTopic = selectedTopic;
+
+    // Get the selected category name for feedback
+    const selectedCategory = availableCategories.find(
+      (c) => c.slug === selectedTopic,
+    );
+    const categoryName = selectedCategory
+      ? selectedCategory.name
+      : selectedTopic;
+
+    speak(`You selected ${categoryName}. Starting the quiz now!`, () => {
       initQuiz(selectedTopic);
     });
   } else {
-    speak(
-      "I couldn't match that to a topic. Please say the topic name or number clearly."
-    );
+    console.log("No topic matched for normalized command:", normalized);
+
+    // Generate dynamic feedback message
+    const topicNames = availableCategories
+      .map((c, i) => `${i + 1} for ${c.name}`)
+      .join(", ");
+    speak(`I couldn't match that to a topic. Please say ${topicNames}.`);
     setTimeout(startListeningForTopicCommand, 500);
   }
+}
+
+// NEW: Handle custom (free-form) topic - directly use user input without predefined matching
+function handleCustomTopic(topic) {
+  if (!topic || topic.trim() === "") {
+    speak("I couldn't hear a topic. Please say a topic name clearly.");
+    setTimeout(startListeningForCustomTopic, 500);
+    return;
+  }
+
+  // Clean up the topic for API use
+  const customTopic = topic.trim();
+  console.log("Using custom topic:", customTopic);
+
+  if (isSpeechRecogSupported && recognition) {
+    recognition.stop();
+  }
+
+  // Speak confirmation and start quiz with custom topic
+  speak(
+    `Great! Starting a quiz about ${customTopic}. Generating questions now...`,
+    () => {
+      initQuiz(customTopic);
+    },
+  );
 }
 
 if (topicListElement) {
@@ -903,19 +1296,20 @@ if (topicListElement) {
     if (isSpeechRecogSupported && recognition) {
       resetRecognition();
     }
-    speak(`You selected ${topic}. Starting the quiz now!`, () => {
-      initQuiz(topic);
-    });
+    currentTopic = topic;
+    initQuiz(topic);
   });
 }
 
 // Function to transition from Instructions to Topic Selection
-function showTopicSelection() {
+async function showTopicSelection() {
   if (isSpeechRecogSupported && recognition) {
     recognition.stop();
   }
   showView("topic-selection-view");
-  readTopicInstructions();
+
+  // Skip category list - go straight to custom topic selection
+  readCustomTopicPrompt();
 }
 
 function startQuiz() {
@@ -935,31 +1329,90 @@ function startQuiz() {
 // Global keyboard handler for quiz answers
 let quizKeyboardHandler = null;
 
-function initQuiz(topic) {
+async function initQuiz(topic) {
+  console.log("Initializing quiz for topic:", topic);
+
   // 1. Setup initial state
   currentTopic = topic;
-  questions = quizData[currentTopic].questions;
-  topicTitleElement.textContent = quizData[currentTopic].title;
   currentQuestionIndex = 0;
   score = 0;
   scoreTextElement.textContent = `Score: ${score}`;
 
-  // 2. Start the quiz
+  // 2. Try to load questions from hardcoded data first, or generate via API
+  if (quizData[currentTopic]) {
+    // Legacy hardcoded data
+    console.log("Using hardcoded quiz data for:", topic);
+    questions = quizData[currentTopic].questions;
+    topicTitleElement.textContent = quizData[currentTopic].title;
+    startQuizView();
+  } else {
+    // Generate questions dynamically via API
+    console.log("Generating questions via API for:", topic);
+    try {
+      const response = await fetch(`${API_BASE}/generate-questions/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Token ${authToken}`,
+        },
+        body: JSON.stringify({
+          topic: topic,
+          difficulty: "medium",
+          num_questions: 5,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("Failed to generate questions:", response.status);
+        speak("Error generating questions. Please try again.", () => {
+          showTopicSelection();
+        });
+        return;
+      }
+
+      const data = await response.json();
+      console.log("Received questions:", data);
+
+      if (!data.questions || data.questions.length === 0) {
+        throw new Error("No questions in response");
+      }
+
+      questions = data.questions;
+
+      // Find the category name from availableCategories
+      const category = availableCategories.find((c) => c.slug === topic);
+      topicTitleElement.textContent = category ? category.name : topic;
+
+      startQuizView();
+    } catch (error) {
+      console.error("Error generating questions:", error);
+      speak(
+        "Could not generate questions. Please try another category.",
+        () => {
+          showTopicSelection();
+        },
+      );
+    }
+  }
+}
+
+function startQuizView() {
+  // Start the quiz view
   showView("quiz-view");
-  
+
   // Enable keyboard shortcuts
   if (quizKeyboardHandler) {
-    document.removeEventListener('keydown', quizKeyboardHandler);
+    document.removeEventListener("keydown", quizKeyboardHandler);
   }
   quizKeyboardHandler = (e) => {
     const key = e.key.toLowerCase();
-    if (['a', 'b', 'c', 'd'].includes(key)) {
+    if (["a", "b", "c", "d"].includes(key)) {
       resetRecognition();
       handleAnswer(key);
     }
   };
-  document.addEventListener('keydown', quizKeyboardHandler);
-  
+  document.addEventListener("keydown", quizKeyboardHandler);
+
   loadQuestion();
 }
 
@@ -976,34 +1429,53 @@ function loadQuestion() {
   questionTextElement.textContent = q.question;
   optionsList.innerHTML = q.options
     .map((opt, idx) => {
-      const letter = ['A', 'B', 'C', 'D'][idx];
+      const letter = ["A", "B", "C", "D"][idx];
       return `<li data-answer="${letter}" style="cursor: pointer; transition: background 0.2s;" 
                   onmouseover="this.style.background='#e3f2fd'" 
                   onmouseout="this.style.background='#fcfcfc'">${opt}</li>`;
     })
     .join("");
 
+  // Show 30 seconds on timer immediately for this question
+  timerElement.textContent = `Time left: ${timeLimit}s`;
+
   const questionText = `Question ${currentQuestionIndex + 1}. ${
     q.question
   }. The options are: ${q.options.join(". ")}`;
 
   // Add click handlers to options
-  const optionItems = optionsList.querySelectorAll('li');
-  optionItems.forEach(item => {
-    item.addEventListener('click', () => {
-      const answer = item.getAttribute('data-answer');
+  const optionItems = optionsList.querySelectorAll("li");
+  optionItems.forEach((item) => {
+    item.addEventListener("click", () => {
+      const answer = item.getAttribute("data-answer");
       if (answer) {
-        resetRecognition();
+        stopSpeechAndRecognition();
         handleAnswer(answer.toLowerCase());
       }
     });
   });
 
-  startTimer();
-  speak(questionText, startListeningForAnswer);
+  console.log("Question loaded, starting speech and waiting for completion...");
+
+  // Speak question first, then start timer after reading completes
+  speak(questionText, () => {
+    console.log(
+      "Speech completed for question, now starting timer and listening...",
+    );
+    // Timer starts after the system finishes reading the question and options
+    startTimer();
+    // Then start listening for the user's answer
+    startListeningForAnswer();
+  });
 }
 
 function startTimer() {
+  // Make sure any previous timer is completely cleared
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
+
   let timeLeft = timeLimit;
   timerElement.textContent = `Time left: ${timeLeft}s`;
 
@@ -1012,6 +1484,7 @@ function startTimer() {
     timerElement.textContent = `Time left: ${timeLeft}s`;
 
     if (timeLeft <= 0) {
+      timer = null;
       handleAnswer(null); // Time's up, null answer
     } else {
       timer = setTimeout(tick, 1000);
@@ -1020,83 +1493,221 @@ function startTimer() {
 }
 
 function startListeningForAnswer() {
-  if (!isSpeechRecogSupported || !recognition) return;
+  if (!isSpeechRecogSupported || !recognition) {
+    console.error("Speech recognition not available");
+    return;
+  }
+
+  console.log("Starting to listen for answer...");
+  let answerSubmitted = false; // Prevent duplicate answer submissions
+
+  // Clear previous handlers
+  recognition.onresult = null;
+  recognition.onerror = null;
+  recognition.onend = null;
+  recognition.onnomatch = null;
+
+  recognition.onstart = function () {
+    console.log("Recognition started successfully");
+    setVoiceStatus("Listening for your answer...");
+  };
 
   recognition.onresult = function (event) {
+    if (answerSubmitted) {
+      console.log("Answer already submitted, ignoring further results");
+      return;
+    }
+
     if (listeningTimeout) clearTimeout(listeningTimeout);
-    const transcript = event.results[0][0].transcript.toLowerCase();
-    handleAnswer(transcript);
+
+    // Only process final results (not interim)
+    let finalTranscript = "";
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript.toLowerCase();
+      }
+    }
+
+    if (finalTranscript.trim()) {
+      console.log("Heard answer:", finalTranscript);
+      answerSubmitted = true; // Mark as submitted to prevent duplicates
+      handleAnswer(finalTranscript);
+    }
+  };
+
+  recognition.onnomatch = function (event) {
+    console.log("No match detected");
+    if (!answerSubmitted) {
+      speak("Sorry, I didn't catch that. Please say A, B, C, or D.", () => {
+        if (timer && !answerSubmitted)
+          setTimeout(() => startListeningForAnswer(), 500);
+      });
+    }
   };
 
   recognition.onerror = function (event) {
+    console.error("Recognition error:", event.error);
+
+    if (
+      event.error === "not-allowed" ||
+      event.error === "service-not-allowed"
+    ) {
+      showAuthError(
+        "Microphone permission denied. Please refresh and allow microphone access.",
+      );
+      return;
+    }
+    if (event.error === "network") {
+      console.error("Network error in speech recognition service");
+      return;
+    }
+
     if (event.error !== "no-speech" && event.error !== "audio-capture") {
-      speak("Pardon? Please say A, B, C, or D.", () => {
-        if (timer) setTimeout(startListeningForAnswer, 500);
-      });
+      if (!answerSubmitted) {
+        speak("Pardon? Please say A, B, C, or D.", () => {
+          if (timer && !answerSubmitted)
+            setTimeout(() => startListeningForAnswer(), 500);
+        });
+      }
+    }
+  };
+
+  recognition.onend = function () {
+    console.log("Recognition ended");
+    if (!answerSubmitted && timer) {
+      console.log("Recognition ended but no answer yet, restarting...");
+      resetRecognition();
+      startRecognitionWithDelay(() => startListeningForAnswer(), 500);
     }
   };
 
   try {
-    recognition.start();
-    listeningTimeout = setTimeout(() => {
-      console.log("Listening timeout for answer");
-      resetRecognition();
-      speak("I didn't hear your answer. Please say A, B, C, or D.", () => {
-        if (timer) setTimeout(startListeningForAnswer, 500);
-      });
-    }, LISTENING_TIMEOUT);
+    // Explicitly reset before starting
+    resetRecognition();
+
+    // Start with proper delay
+    startRecognitionWithDelay(() => {
+      setVoiceStatus("🎤 Listening...");
+
+      listeningTimeout = setTimeout(() => {
+        console.log("Listening timeout for answer (30s)");
+        if (!answerSubmitted) {
+          resetRecognition();
+          speak("I didn't hear your answer. Please say A, B, C, or D.", () => {
+            if (timer && !answerSubmitted)
+              setTimeout(() => startListeningForAnswer(), 500);
+          });
+        }
+      }, timeLimit * 1000); // Match the time limit (e.g., 30 seconds)
+    }, 300);
   } catch (e) {
-    if (e.name !== "InvalidStateError") {
-    }
+    console.error("Error in startListeningForAnswer:", e);
   }
 }
 
-function handleAnswer(spokenCommand) {
+async function handleAnswer(spokenCommand) {
   stopSpeechAndRecognition();
 
   const q = questions[currentQuestionIndex];
-  const canonicalAnswer = {
+
+  // Better answer detection with priority matching
+  const exactMatches = {
     a: "A",
     b: "B",
     c: "C",
     d: "D",
+  };
+
+  const phoneticMatches = {
+    ay: "A",
+    be: "B",
+    bee: "B",
+    see: "C",
+    sea: "C",
+    dee: "D",
+  };
+
+  const longMatches = {
     "option a": "A",
     "option b": "B",
     "option c": "C",
     "option d": "D",
-    "ay": "A",
-    "be": "B",
-    "bee": "B",
-    "see": "C",
-    "sea": "C",
-    "dee": "D",
+    "answer a": "A",
+    "answer b": "B",
+    "answer c": "C",
+    "answer d": "D",
   };
 
   let userChoice = null;
 
   if (spokenCommand) {
     const normalized = spokenCommand.toLowerCase().trim();
-    for (const key in canonicalAnswer) {
-      if (normalized.includes(key) || normalized === key) {
-        userChoice = canonicalAnswer[key];
-        break;
+    console.log("Normalized command:", normalized);
+
+    // Priority 1: Exact single letter match
+    if (normalized in exactMatches) {
+      userChoice = exactMatches[normalized];
+      console.log("Matched as exact letter:", userChoice);
+    }
+    // Priority 2: Check for phonetic spellings
+    else if (normalized in phoneticMatches) {
+      userChoice = phoneticMatches[normalized];
+      console.log("Matched as phonetic:", userChoice);
+    }
+    // Priority 3: Check for longer phrases
+    else {
+      for (const key in longMatches) {
+        if (normalized.includes(key)) {
+          userChoice = longMatches[key];
+          console.log("Matched as long phrase:", key, "->", userChoice);
+          break;
+        }
       }
     }
   }
 
   let feedbackText;
+  let isCorrect = false;
+
   if (userChoice === q.answer) {
     score++;
+    isCorrect = true;
     feedbackText = `Correct! Your answer, ${userChoice}, is right.`;
+  } else if (userChoice) {
+    feedbackText = `Incorrect. You said ${userChoice}, but the correct answer was ${q.answer}.`;
   } else if (spokenCommand !== null) {
-    feedbackText = `Incorrect. The correct answer was ${q.answer}.`;
+    feedbackText = `I couldn't understand that. The correct answer was ${q.answer}.`;
   } else {
     feedbackText = `Time's up! The correct answer was ${q.answer}.`;
   }
 
   scoreTextElement.textContent = `Score: ${score}`;
   currentQuestionIndex++;
-  speak(feedbackText, loadQuestion);
+
+  // If answer is incorrect and user is logged in, get Grok explanation
+  if (!isCorrect && spokenCommand !== null && authToken) {
+    speak(feedbackText, async () => {
+      try {
+        console.log("Fetching Grok explanation for incorrect answer...");
+        const explanation = await handleIncorrectAnswer(
+          q,
+          userChoice,
+          currentTopic,
+          authToken,
+          loadQuestion, // Pass loadQuestion as callback to run after explanation finishes
+        );
+
+        console.log("Explanation received and queued for speaking");
+      } catch (error) {
+        console.error("Error getting explanation:", error);
+        // Even if explanation fails, continue to next question
+        loadQuestion();
+      }
+    });
+  } else {
+    // Default behavior (correct answer or timeout or not logged in)
+    speak(feedbackText, loadQuestion);
+  }
 }
 
 async function saveScore() {
@@ -1108,10 +1719,15 @@ async function saveScore() {
   }
 
   try {
+    // Use the displayed topic title or fallback to current topic
+    const topicTitle =
+      topicTitleElement.textContent ||
+      (quizData[currentTopic] ? quizData[currentTopic].title : currentTopic);
+
     await apiRequest("/scores/", {
       method: "POST",
       body: JSON.stringify({
-        topic: quizData[currentTopic].title || currentTopic,
+        topic: topicTitle,
         score,
         total_questions: questions.length,
       }),
@@ -1125,13 +1741,13 @@ async function saveScore() {
 
 function showResults() {
   stopSpeechAndRecognition();
-  
+
   // Disable keyboard shortcuts
   if (quizKeyboardHandler) {
-    document.removeEventListener('keydown', quizKeyboardHandler);
+    document.removeEventListener("keydown", quizKeyboardHandler);
     quizKeyboardHandler = null;
   }
-  
+
   showView("result-view");
 
   const totalQuestions = questions.length;
@@ -1141,8 +1757,7 @@ function showResults() {
   const percentage = (score / totalQuestions) * 100;
 
   if (percentage >= 80) {
-    finalFeedback =
-      "Excellent! You have a deep understanding of this topic.";
+    finalFeedback = "Excellent! You have a deep understanding of this topic.";
   } else if (percentage >= 50) {
     finalFeedback = "Good job! You've passed the quiz.";
   } else {
@@ -1154,7 +1769,7 @@ function showResults() {
 
   speak(
     `Quiz finished. Your final score is ${score} out of ${totalQuestions}. ${finalFeedback} Say Start Quiz to play again, or say Logout to sign out.`,
-    startListeningForResultCommand
+    startListeningForResultCommand,
   );
 
   saveScore();
@@ -1194,7 +1809,8 @@ function initInstructionView() {
   }
 
   if (readyPromptElement) {
-    readyPromptElement.textContent = 'When you are ready, say "Start Quiz" to begin.';
+    readyPromptElement.textContent =
+      'When you are ready, say "Start Quiz" to begin.';
   }
 
   if (isSpeechSynthSupported && isSpeechRecogSupported) {
@@ -1206,8 +1822,17 @@ function initInstructionView() {
 }
 
 window.onload = async function () {
-  console.log("Page loaded. Speech support:", isSpeechSynthSupported, isSpeechRecogSupported);
-  
+  console.log(
+    "Page loaded. Speech support:",
+    isSpeechSynthSupported,
+    isSpeechRecogSupported,
+  );
+
+  // Preload categories for better performance
+  loadCategories().catch((error) => {
+    console.error("Error preloading categories:", error);
+  });
+
   const hasUser = await loadCurrentUser();
   if (hasUser) {
     console.log("User already logged in");
@@ -1215,17 +1840,19 @@ window.onload = async function () {
   } else {
     console.log("No user. Showing auth view");
     showView("auth-view");
-    
+
     if (!isSpeechSynthSupported || !isSpeechRecogSupported) {
       if (authInstructionElement) {
-        authInstructionElement.textContent = "Voice features are not supported in this browser. Please use Chrome or Edge.";
+        authInstructionElement.textContent =
+          "Voice features are not supported in this browser. Please use Chrome or Edge.";
       }
       if (authErrorElement) {
         authErrorElement.textContent = "Voice not supported";
       }
     } else {
       if (authInstructionElement) {
-        authInstructionElement.textContent = "Click Start Voice, then say 'Login' or 'Register'. You only need a username.";
+        authInstructionElement.textContent =
+          "Click Start Voice, then say 'Login' or 'Register'. You only need a username.";
       }
     }
   }
