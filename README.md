@@ -1,43 +1,50 @@
-# QUIZ_APP
+Quiz Talk – AI-Powered Voice Interactive Quiz Application
 
-Simple quiz web application (local copy). This repository contains a frontend and a Django backend.
+Quiz Talk is a voice-controlled quiz platform that enables users to participate in quizzes entirely through speech. The application leverages the Web Speech API for speech recognition and text-to-speech functionality, allowing users to navigate the system, select quiz topics, answer questions, and receive feedback using voice commands.
 
-Quickstart (Windows PowerShell)
+The platform supports both predefined quiz categories and AI-generated quizzes on custom topics entered by the user. Questions are dynamically generated through a backend API, making the system flexible and capable of creating quizzes on virtually any subject. User authentication, score tracking, and quiz history are managed through a secure backend service.
 
-1. Create a Python virtual environment and activate it:
+Key Features
+🎤 Voice-based Login and Registration
+🗣️ Speech-to-Text (STT) for user interaction
+🔊 Text-to-Speech (TTS) for reading questions and instructions
+🤖 AI-generated quiz questions on any topic
+📚 Predefined and dynamic quiz categories
+⏱️ Timed multiple-choice questions
+📊 Score tracking and quiz history
+🔐 Token-based user authentication
+🌐 REST API integration for backend communication
+💻 Fully hands-free quiz experience
+Tech Stack
 
-```powershell
-python -m venv .venv
-.\\.venv\\Scripts\\Activate.ps1
-```
+Frontend
 
-2. Install backend requirements:
+HTML5
+CSS3
+JavaScript (ES6)
+Web Speech API
 
-```powershell
-pip install -r backend/requirements.txt
-```
+Backend
 
-3. Copy the example env and edit secrets:
+Django
+Django REST Framework
 
-```powershell
-copy backend\\.env.example backend\\.env
-# Edit backend\\.env and add real secrets
-```
+Database
 
-4. Run migrations and start the server:
+SQLite / PostgreSQL
 
-```powershell
-cd backend
-python manage.py migrate
-python manage.py runserver
-```
+AI Integration
 
-Notes
+Dynamic Question Generation API
+How It Works
+User logs in or registers using voice commands.
+The system provides spoken instructions.
+User selects a quiz topic by voice.
+Questions are fetched from the database or generated dynamically by AI.
+Questions and options are read aloud.
+User answers using voice commands (A, B, C, or D).
+The system evaluates answers, provides feedback, and tracks scores.
+Final results and quiz history are stored and displayed.
+Project Goal
 
-- `backend/.env` is excluded from git. Use `backend/.env.example` as a template.
-- Rotate any secrets that were previously committed.
-- If history was rewritten, collaborators must re-clone the repository.
-
-Contact
-
-- Ask project owner for help if anything fails.
+The goal of Quiz Talk is to create an accessible, engaging, and hands-free learning experience by combining voice technology, AI-driven content generation, and interactive quiz mechanics into a single platform.
