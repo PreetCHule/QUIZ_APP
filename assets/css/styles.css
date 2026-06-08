@@ -1,0 +1,304 @@
+/* Extracted styles from original index.html */
+
+/* BASE & UTILITY STYLES */
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  background-color: #e3f2fd; /* Light, bright sky blue */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 20px;
+  line-height: 1.6;
+}
+
+.container {
+  background-color: #ffffff;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 15px 30px rgba(30, 136, 229, 0.2);
+  text-align: center;
+  max-width: 550px;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+.user-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: #f2f7ff;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-weight: 600;
+  color: #1e88e5;
+}
+
+#logout-button {
+  background: #e3f2fd;
+  color: #1e88e5;
+  border: 1px solid #90caf9;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#logout-button:hover {
+  background: #bbdefb;
+}
+
+/* Dynamic view management */
+.view {
+  display: none; /* Default state for all views */
+}
+.view.active {
+  display: block; /* Show the active view */
+}
+
+/* TYPOGRAPHY & HEADERS */
+h1 {
+  color: #1e88e5;
+  margin-bottom: 25px;
+  font-size: 1.5em; /* Reduced size for better fitting in one file */
+  font-weight: 700;
+}
+
+h2 {
+  color: #1e88e5;
+  font-size: 1.3em; /* Reduced size */
+  margin-bottom: 15px;
+  font-weight: 600;
+  border-bottom: 2px solid #e3f2fd;
+  padding-bottom: 5px;
+}
+
+.ready-prompt,
+.topic-prompt {
+  color: #455a64;
+  font-size: 1.05em;
+  margin-top: 25px;
+  margin-bottom: 30px;
+  padding: 15px;
+  background-color: #fcfcfc;
+  border-radius: 8px;
+  border-left: 4px solid #1e88e5;
+  font-weight: 500;
+  text-align: left;
+}
+
+/* LISTS (Instructions & Topics) */
+.instructions-list {
+  text-align: left;
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.instructions-list li {
+  padding: 8px 0;
+  border-bottom: 1px dashed #cfd8dc;
+  color: #546e7a;
+  font-size: 0.95em;
+}
+
+.instructions-list li:last-child {
+  border-bottom: none;
+}
+
+.topic-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.topic-list li {
+  background-color: #ffe0b2;
+  color: #ff7043;
+  padding: 15px 20px;
+  border-radius: 12px;
+  font-size: 1.1em;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  border-bottom: none;
+  text-align: center;
+}
+
+.topic-list li:hover {
+  background-color: #ffab91;
+  transform: translateY(-2px);
+}
+
+
+
+.primary-action {
+  background-color: #1e88e5;
+  color: #ffffff;
+  padding: 14px 18px;
+  border-radius: 24px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.primary-action:hover {
+  background-color: #1565c0;
+}
+
+.auth-error {
+  margin-top: 16px;
+  color: #d32f2f;
+  font-weight: 600;
+  min-height: 20px;
+}
+
+.hidden {
+  display: none;
+}
+
+/* BUTTONS */
+#startButton,
+#topicSelectButton,
+#restart-quiz {
+  background-color: #ff7043;
+  color: white;
+  padding: 18px 40px;
+  font-size: 1.1em;
+  font-weight: bold;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 5px 15px rgba(255, 112, 67, 0.4);
+  margin-top: 20px;
+  width: 100%;
+  max-width: 300px;
+}
+
+#startButton:hover,
+#topicSelectButton:hover,
+#restart-quiz:hover {
+  background-color: #f4511e;
+  transform: translateY(-3px);
+}
+
+/* QUIZ VIEW Specific Styles */
+.timer {
+  font-size: 1.5em;
+  font-weight: 700;
+  color: #ff7043;
+  margin-bottom: 20px;
+  border: 2px solid #ff7043;
+  padding: 10px;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.options-area li {
+  text-align: left;
+  padding: 12px;
+  margin: 8px 0;
+  background-color: #fcfcfc;
+  border: 1px solid #e3f2fd;
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: 500;
+  color: #455a64;
+}
+
+/* Result View Specific Styles */
+.result-summary h2 {
+  border: none;
+  padding-bottom: 0;
+}
+#final-score {
+  font-size: 3em;
+  font-weight: 900;
+  color: #1e88e5;
+  margin: 20px 0;
+}
+#feedback {
+  font-size: 1.2em;
+  font-style: italic;
+  color: #ff7043;
+  margin-top: 20px;
+}
+
+.save-status {
+  font-weight: 700;
+  color: #1e88e5;
+  margin: 10px 0 0;
+}
+
+.score-history {
+  text-align: left;
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 12px;
+  background-color: #f7f9fc;
+  border: 1px solid #e3f2fd;
+}
+
+.score-history h3 {
+  margin: 0 0 10px;
+  color: #1e88e5;
+}
+
+.score-history ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.score-history li {
+  padding: 8px 0;
+  border-bottom: 1px dashed #cfd8dc;
+  color: #546e7a;
+}
+
+.score-history li:last-child {
+  border-bottom: none;
+}
+
+.score-list {
+  display: grid;
+  gap: 10px;
+}
+
+.score-item {
+  padding: 12px;
+  border: 1px solid #e3f2fd;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.score-item__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  color: #1e88e5;
+}
+
+.score-item__topic {
+  font-size: 0.95em;
+}
+
+.score-item__score {
+  font-size: 0.95em;
+  color: #ff7043;
+}
+
+.score-item__date {
+  margin-top: 6px;
+  font-size: 0.85em;
+  color: #78909c;
+}

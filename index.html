@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiz Talk</title>
+    <!-- External CSS -->
+    <link rel="stylesheet" href="assets/css/styles.css">
+  </head>
+  <body>
+    <section id="auth-view" class="view active">
+      <div class="container">
+        <h1>Welcome to Quiz Talk</h1>
+        <p class="ready-prompt" id="auth-instruction">
+          Say "Login" to sign in, or "Register" to create a new account. You only need a username.
+        </p>
+        <button id="start-voice" class="primary-action">Start Voice</button>
+        <p id="voice-status" class="auth-error" aria-live="polite"></p>
+        <p id="auth-error" class="auth-error" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section id="instruction-view" class="view">
+      <div class="container">
+        <div class="user-bar">
+          <span id="user-label">Signed in</span>
+          <button id="logout-button">Log out</button>
+        </div>
+        <h1>Welcome to the Voice-First Quiz!</h1>
+        <div id="instructions-text">
+          <h2>Instructions:</h2>
+          <ol class="instructions-list">
+            <li>The quiz will be presented one question at a time.</li>
+            <li>Choose your answer by speaking A, B, C, or D.</li>
+            <li>You will have a limited time to answer each question.</li>
+            <li>Each correct answer earns one point.</li>
+            <li>Make sure your audio is on and your microphone is ready.</li>
+          </ol>
+          <p class="ready-prompt">When you're ready, say "Start Quiz" to begin.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="topic-selection-view" class="view">
+      <div class="container">
+        <h1>Topic Selection</h1>
+        <p class="topic-prompt">
+          Please select a quiz topic by saying the number or name of the topic.
+        </p>
+        <ul id="topic-list" class="instructions-list topic-list">
+          <li data-topic="science">1. Science Trivia</li>
+          <li data-topic="history">2. World History</li>
+          <li data-topic="geography">3. Geography Facts</li>
+          <li data-topic="literature">4. Classic Literature</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="quiz-view" class="view">
+      <div class="container">
+        <h1 id="topic-title">Quiz Topic Title</h1>
+        <div class="timer" id="timer">Time left: 25s</div>
+
+        <div class="question-area">
+          <h2
+            class="ready-prompt"
+            id="question-text"
+            style="text-align: center"
+          >
+            The question will be read here...
+          </h2>
+          <ul id="options-list" class="instructions-list options-area"></ul>
+        </div>
+        <p
+          id="score-text"
+          style="font-size: 1.2em; font-weight: bold; color: #455a64"
+        >
+          Score: 0
+        </p>
+        <p class="topic-prompt" style="text-align: center; margin-top: 15px">
+          Say A, B, C, or D to answer. You can also press the key or click an option.
+        </p>
+      </div>
+    </section>
+
+    <section id="result-view" class="view">
+      <div class="container result-summary">
+        <h1>Quiz Complete!</h1>
+        <h2>Your Final Score:</h2>
+        <p id="final-score">0 out of 0</p>
+        <p id="score-save-status" class="save-status"></p>
+        <p id="feedback">Feedback will appear here.</p>
+        <p id="restart-prompt" class="ready-prompt">
+          Say "Start Quiz" to play again, or say "Logout" to sign out.
+        </p>
+        <div id="score-history" class="score-history"></div>
+        <button id="logout-button-result" class="primary-action" style="margin-top: 16px;">Log out</button>
+      </div>
+    </section>
+
+    <!-- External JS -->
+    <script src="assets/js/main.js"></script>
+  </body>
+</html>
